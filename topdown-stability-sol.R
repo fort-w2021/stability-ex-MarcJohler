@@ -90,7 +90,7 @@ get_stability_paths <- function(model, data, reps = 100,
   method <- match.arg(method)
   checkmate::assert_vector(strata,
     any.missing = FALSE,
-    len = NROW(data), null.ok = TRUE
+    len = nrow(data), null.ok = TRUE
   )
   checkmate::assert_number(fraction, lower = 0, upper = 1)
 
@@ -139,7 +139,7 @@ sample_without_replacement <- function(nrows, fraction, strata = NULL) {
   # check if sampling is possible
   checkmate::assert(round(fraction * nrows) >= 1)
 
-  abs_sample_size <- round(fraction * nrows)
+  abs_sample_size <- ceiling(fraction * nrows)
 
   if (is.null(strata)) {
     return(sample(nrows,
@@ -147,15 +147,20 @@ sample_without_replacement <- function(nrows, fraction, strata = NULL) {
       replace = FALSE
     )) # --> early exit!
   }
-  rows <- tapply(
-    X = seq_len(nrows),
-    INDEX = strata,
-    FUN = sample,
-    replace = FALSE,
-    size = abs_sample_size
-  )
-  as.vector(rows)
+  
+  # for strata sample we need separate sizes
+  abs_sample_sizes <- ceiling(table(strata) * fraction)
+  row_sample <- c()
+  
+  for (i in names(abs_sample_sizes)) {
+    row_indizes <- seq_len(nrows)[strata %in% c(i, as.numeric(i))]
+    row_sample <- c(row_sample, sample(row_indizes,
+                                      size = abs_sample_sizes[[i]], 
+                                      replace = FALSE))
+  }
+  row_sample
 }
+
 
 ############## refit ###########################################################
 
@@ -230,7 +235,7 @@ make_paths <- function(selected, reps) {
   # this line of code can also be used as type conversion
   # for the case reps = 1
   paths <- sum_matrix / reps
-  return(paths)
+  paths
 }
 
 ############## plot_paths ###########################################################
